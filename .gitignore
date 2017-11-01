@@ -1,5 +1,4 @@
 venv
-*.json
 ghostdriver.log
 phantomjs
 *.pyc
