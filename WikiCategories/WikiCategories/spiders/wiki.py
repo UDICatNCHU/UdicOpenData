@@ -12,7 +12,7 @@ def genUrl(domain, i):
 class WikiSpider(scrapy.Spider):
     name = 'wiki'
     allowed_domains = ['zh.wikipedia.org']
-    root = 'https://zh.wikipedia.org/wiki/Category:各国动画师'
+    root = 'https://zh.wikipedia.org/wiki/Category:頁面分類'
 
     start_urls = []
     for i in BeautifulSoup(requests.get(root).text).select('.CategoryTreeLabelCategory'):
