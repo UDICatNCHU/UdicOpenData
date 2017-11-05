@@ -61,4 +61,4 @@ def dfs(root):
         json.dump(reverseResult, open('{}.reverse.json'.format(parent), 'w', encoding='utf-8'))
         gc.collect()
 
-dfs(sys.argv[1] if len(sys.argv) else root)
+dfs(sys.argv[1] if len(sys.argv)>1 else root)
