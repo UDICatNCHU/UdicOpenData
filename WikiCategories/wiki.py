@@ -5,7 +5,7 @@ from collections import defaultdict
 from opencc import OpenCC 
 
 openCC = OpenCC('s2t')
-root = 'í“Ãæ·Öî'
+root = 'é é¢åˆ†é¡ž'
 wikiBaseUrl = 'https://zh.wikipedia.org'
 
 def genUrl(category):
@@ -36,23 +36,23 @@ def dfs(root):
         if os.path.isfile(parent + '.json'):
             print('skip ' + parent)
             continue
-        # ÏÂÒ»í“
+        # ä¸‹ä¸€é 
         leafNodeList = [res.select('#mw-pages a')]
         while leafNodeList:
             current = leafNodeList.pop(0)
 
-            # notyet ×ƒ”µµÄÒâË¼ÊÇ£¬Òòžéwiki•þÓÐƒÉ‚€ÏÂÒ»í“µÄ³¬ßB½Y
-            # í”²¿¸úµ×²¿
-            # ËùÒÔÈç¹û°Ñí”²¿µÄbs4½Y¹ûappendµ½leafNodeLIstµÄÔ’
-            # µ×²¿¾Í²»ÓÃÖØÑ}¼Ó
+            # notyet è®Šæ•¸çš„æ„æ€æ˜¯ï¼Œå› ç‚ºwikiæœƒæœ‰å…©å€‹ä¸‹ä¸€é çš„è¶…é€£çµ
+            # é ‚éƒ¨è·Ÿåº•éƒ¨
+            # æ‰€ä»¥å¦‚æžœæŠŠé ‚éƒ¨çš„bs4çµæžœappendåˆ°leafNodeLIstçš„è©±
+            # åº•éƒ¨å°±ä¸ç”¨é‡è¤‡åŠ 
             notyet = True
             for child in current:
                 tradChild = openCC.convert(child.text).replace('/', '-')
-                if notyet and tradChild == 'ÏÂÒ»í“' and child.has_attr('href'):
+                if notyet and tradChild == 'ä¸‹ä¸€é ' and child.has_attr('href'):
                     notyet = False
                     leafNodeList.append(BeautifulSoup(requests.get(wikiBaseUrl + child['href']).text).select('#mw-pages a'))
                 else:
-                    if tradChild != 'ÏÂÒ»í“' and tradChild != 'ÉÏÒ»í“':
+                    if tradChild != 'ä¸‹ä¸€é ' and tradChild != 'ä¸Šä¸€é ':
                         result[parent].append(tradChild)
                         reverseResult[tradChild].append(parent)
 
@@ -61,4 +61,4 @@ def dfs(root):
         json.dump(reverseResult, open('{}.reverse.json'.format(parent), 'w', encoding='utf-8'))
         gc.collect()
 
-dfs(sys.argv[1] if len(sys.argv)>1 else root)
+dfs(sys.argv[1] if len(sys.argv) else root)
