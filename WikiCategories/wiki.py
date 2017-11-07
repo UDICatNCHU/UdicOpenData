@@ -74,4 +74,4 @@ def dfs(root):
         print('==============================')
         raise e
 
-dfs(sys.argv[1] if len(sys.argv)>2 else root)
+dfs(sys.argv[1] if len(sys.argv)==2 else root)
