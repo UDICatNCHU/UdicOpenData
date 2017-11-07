@@ -2,7 +2,7 @@
 import requests, json, gc, sys, os.path
 from bs4 import BeautifulSoup
 from collections import defaultdict
-from opencc import OpenCC 
+from opencc import OpenCC
 
 openCC = OpenCC('s2t')
 root = '頁面分類'
@@ -12,9 +12,9 @@ def genUrl(category):
     return 'https://zh.wikipedia.org/wiki/Category:' + category
 
 def dfs(root):
-    if os.path.isfile('stack_visited.json'):
+    if os.path.isfile('wikiCategoryJson/stack_visited.json'):
         f = json.load(open('wikiCategoryJson/stack_visited.json', 'r'))
-        visited, stack = f['visited'], f['stack']
+        visited, stack = set(f['visited']), f['stack']
     else:
         visited, stack = set(root), [root]
 
@@ -22,7 +22,7 @@ def dfs(root):
         while stack:
             result = defaultdict(list)
             reverseResult = defaultdict(list)
-            
+
             parent = stack.pop()
             res = BeautifulSoup(requests.get(genUrl(parent)).text)
             # node
@@ -39,8 +39,9 @@ def dfs(root):
                     result[parent].append(tradText)
                     reverseResult[tradText].append(parent)
 
-            if os.path.isfile(parent + '.json'):
+            if os.path.isfile('wikiCategoryJson/' + parent + '.json'):
                 print('skip ' + parent)
+                json.dump({'stack':stack, 'visited':list(visited)}, open('wikiCategoryJson/stack_visited.json', 'w', encoding='utf-8'))                
                 continue
             # 下一頁
             leafNodeList = [res.select('#mw-pages a')]
@@ -75,3 +76,4 @@ def dfs(root):
         raise e
 
 dfs(sys.argv[1] if len(sys.argv)==2 else root)
+print('finished!!!')
