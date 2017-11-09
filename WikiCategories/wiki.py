@@ -18,27 +18,27 @@ def dfs(root):
     else:
         visited, stack = set(root), [root]
 
-    try:
-        while stack:
+    while stack:
+        try:
             result = defaultdict(list)
             reverseResult = defaultdict(list)
-
+    
             parent = stack.pop()
             res = BeautifulSoup(requests.get(genUrl(parent)).text)
             # node
             for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
                 tradText = openCC.convert(candidateOffsprings.text).replace('/', '-')
-
+    
                 # if it's a node hasn't been through
                 # append these res to stack
                 if tradText not in visited:
                     visited.add(tradText)
                     stack.append(tradText)
-
+    
                     # build dictionary
                     result[parent].append(tradText)
                     reverseResult[tradText].append(parent)
-
+    
             if os.path.isfile('wikiCategoryJson/' + parent + '.json'):
                 print('skip ' + parent)
                 json.dump({'stack':stack, 'visited':list(visited)}, open('wikiCategoryJson/stack_visited.json', 'w', encoding='utf-8'))                
@@ -47,7 +47,7 @@ def dfs(root):
             leafNodeList = [res.select('#mw-pages a')]
             while leafNodeList:
                 current = leafNodeList.pop(0)
-
+    
                 # notyet 變數的意思是，因為wiki會有兩個下一頁的超連結
                 # 頂部跟底部
                 # 所以如果把頂部的bs4結果append到leafNodeLIst的話
@@ -62,18 +62,18 @@ def dfs(root):
                         if tradChild != '下一頁' and tradChild != '上一頁':
                             result[parent].append(tradChild)
                             reverseResult[tradChild].append(parent)
-
+    
             # dump
             json.dump(result, open('wikiCategoryJson/{}.json'.format(parent), 'w', encoding='utf-8'))
             json.dump(reverseResult, open('wikiCategoryJson/{}.reverse.json'.format(parent), 'w', encoding='utf-8'))
             json.dump({'stack':stack, 'visited':list(visited)}, open('wikiCategoryJson/stack_visited.json', 'w', encoding='utf-8'))
             gc.collect()
-    except Exception as e:
-        print('==============================')
-        print(parent)
-        print(str(e))
-        print('==============================')
-        raise e
+        except Exception as e:
+            print('==============================')
+            print(parent)
+            stack.append(parent)
+            print(str(e))
+            print('==============================')
 
 dfs(sys.argv[1] if len(sys.argv)==2 else root)
 print('finished!!!')
