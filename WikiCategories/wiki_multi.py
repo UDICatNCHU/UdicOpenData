@@ -3,6 +3,7 @@ import requests, json, sys, os.path, threading, multiprocessing, pymongo
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
+from random import shuffle
 
 openCC = OpenCC('s2t')
 root = sys.argv[1] if len(sys.argv) == 2 else '頁面分類'
@@ -12,8 +13,8 @@ client = pymongo.MongoClient(None)['nlp']
 Collect = client['wiki']
 reverseCollect = client['wikiReverse']
 
-intsertNum = 500
-workerNum = int(sys.argv[2])
+intsertNum = 50
+queueLock = threading.Lock()
 
 def genUrl(category):
     return 'https://zh.wikipedia.org/wiki/Category:' + category
@@ -77,6 +78,7 @@ def thread_dfs():
     while stack:
         try:
             queueLock.acquire()
+            shuffle(stack)
             parent = stack.pop()
             queueLock.release()
             ans = dfs(parent)
@@ -96,6 +98,9 @@ def thread_dfs():
                 print('insert reverseResultList')
                 reverseResultList = [] # insert完需要重置
         except Exception as e:
+            queueLock.acquire()
+            json.dump({'stack':stack, 'visited':list(visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
+            queueLock.release()
             print('==============================')
             print(parent)
             print(str(e))
@@ -114,8 +119,7 @@ if __name__ == '__main__':
         visited, stack = set(root), [root]
         dfs(root)
 
-    queueLock = threading.Lock()
-    workers = [threading.Thread(target=thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count()*workerNum)]
+    workers = [threading.Thread(target=thread_dfs, name=str(i)) for i in range(6)]
 
     for thread in workers:
        thread.start()
