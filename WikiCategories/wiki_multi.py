@@ -36,7 +36,7 @@ class WikiCategory(object):
         # Wait for all threads to complete
         for thread in workers:
             thread.join()
-        
+
     @staticmethod
     def genUrl(category):
         return 'https://zh.wikipedia.org/wiki/Category:' + category
@@ -66,6 +66,7 @@ class WikiCategory(object):
             self.queueLock.acquire()
             json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
             self.queueLock.release()
+            print('error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             return
 
         # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
@@ -133,7 +134,7 @@ class WikiCategory(object):
             self.Collect.insert(resultList)
         if reverseResultList:
             self.reverseCollect.insert(reverseResultList)
-        
+
 
 if __name__ == '__main__':
     WikiCategory('日本動畫師')
