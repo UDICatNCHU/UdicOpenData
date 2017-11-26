@@ -1,131 +1,139 @@
 # -*- coding: utf-8 -*-
-import requests, json, sys, os.path, threading, multiprocessing, pymongo
+import requests, json, os.path, threading, multiprocessing, pymongo
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
 from random import shuffle
 
-openCC = OpenCC('s2t')
-root = sys.argv[1] if len(sys.argv) == 2 else '頁面分類'
-wikiBaseUrl = 'https://zh.wikipedia.org'
 
-client = pymongo.MongoClient(None)['nlp']
-Collect = client['wiki']
-reverseCollect = client['wikiReverse']
+class WikiCategory(object):
+    """docstring for WikiCategory"""
+    def __init__(self, root=None):
+        self.openCC = OpenCC('s2t')
+        self.root = root if root else '頁面分類'
+        self.wikiBaseUrl = 'https://zh.wikipedia.org'
+        self.client = pymongo.MongoClient(None)['nlp']
+        self.Collect = self.client['wiki']
+        self.reverseCollect = self.client['wikiReverse']
+        self.intsertNum = 50
+        self.queueLock = threading.Lock()
+        self.visited, self.stack = set(), []
 
-intsertNum = 50
-queueLock = threading.Lock()
+        if root:
+            self.visited, self.stack = set(root), []
+            result, reverseResult = self.dfs(root)
+            self.Collect.insert(result)
+            self.reverseCollect.insert(reverseResult)
+        else:
+            f = json.load(open('stack_visited.json', 'r'))
+            self.visited, self.stack = set(f['visited']), f['stack']
 
-def genUrl(category):
-    return 'https://zh.wikipedia.org/wiki/Category:' + category
+        workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count())]
+
+        for thread in workers:
+           thread.start()
+
+        # Wait for all threads to complete
+        for thread in workers:
+            thread.join()
+        
+    @staticmethod
+    def genUrl(category):
+        return 'https://zh.wikipedia.org/wiki/Category:' + category
 
 
-def dfs(parent):
-    result = defaultdict(list)
-    reverseResult = defaultdict(list)
+    def dfs(self, parent):
+        result = defaultdict(dict)
+        reverseResult = defaultdict(dict)
 
-    res = BeautifulSoup(requests.get(genUrl(parent)).text)
-    # node
-    for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
-        tradText = openCC.convert(candidateOffsprings.text).replace('/', '-')
+        res = BeautifulSoup(requests.get(self.genUrl(parent)).text)
+        # node
+        for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
+            tradText = self.openCC.convert(candidateOffsprings.text).replace('/', '-')
 
-        # if it's a node hasn't been through
-        # append these res to stack
-        if tradText not in visited:
-            visited.add(tradText)
-            stack.append(tradText)
+            # if it's a node hasn't been through
+            # append these res to stack
+            if tradText not in self.visited:
+                self.visited.add(tradText)
+                self.stack.append(tradText)
 
-            # build dictionary
-            result[parent].append(tradText)
-            reverseResult[tradText].append(parent)
+                # build dictionary
+                result[parent].setdefault('node', []).append(tradText)
+                reverseResult[tradText].setdefault('parentNode', []).append(parent)
 
-    if Collect.find({'key':parent}).limit(1).count():
-        print('skip ' + parent)
-        queueLock.acquire()
-        json.dump({'stack':stack, 'visited':list(visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
-        queueLock.release()
-        return
-    # 下一頁
-    leafNodeList = [res.select('#mw-pages a')]
-    while leafNodeList:
-        current = leafNodeList.pop(0)
+        if self.Collect.find({'key':parent}).limit(1).count():
+            print('skip ' + parent)
+            self.queueLock.acquire()
+            json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
+            self.queueLock.release()
+            return
 
-        # notyet 變數的意思是，因為wiki會有兩個下一頁的超連結
-        # 頂部跟底部
-        # 所以如果把頂部的bs4結果append到leafNodeLIst的話
-        # 底部就不用重複加
-        notyet = True
-        for child in current:
-            tradChild = openCC.convert(child.text).replace('/', '-')
-            if notyet and tradChild == '下一頁' and child.has_attr('href'):
-                notyet = False
-                leafNodeList.append(BeautifulSoup(requests.get(wikiBaseUrl + child['href']).text).select('#mw-pages a'))
-            else:
-                if tradChild != '下一頁' and tradChild != '上一頁':
-                    result[parent].append(tradChild)
-                    reverseResult[tradChild].append(parent)
+        # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
+        leafNodeList = [res.select('#mw-pages a')]
+        while leafNodeList:
+            current = leafNodeList.pop(0)
 
-    # dump
-    result = [{'key':key, 'value':list(set(value))} for key, value in result.items()]
-    reverseResult = [{'key':key, 'value':list(set(value))} for key, value in reverseResult.items()]
-    queueLock.acquire()
-    json.dump({'stack':stack, 'visited':list(visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
-    queueLock.release()
-    return result, reverseResult
+            # notyet 變數的意思是，因為wiki會有兩個下一頁的超連結
+            # 頂部跟底部
+            # 所以如果把頂部的bs4結果append到leafNodeLIst的話
+            # 底部就不用重複加
+            notyet = True
+            for child in current:
+                tradChild = self.openCC.convert(child.text).replace('/', '-')
+                if notyet and tradChild == '下一頁' and child.has_attr('href'):
+                    notyet = False
+                    leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text).select('#mw-pages a'))
+                else:
+                    if tradChild != '下一頁' and tradChild != '上一頁':
+                        result[parent].setdefault('leafNode', []).append(tradChild)
+                        reverseResult[tradChild].setdefault('ParentOfLeafNode', []).append(parent)
+        # dump
+        result = [dict({'key':key}, **value) for key, value in result.items()]
+        reverseResult = [dict({'key':key}, **value) for key, value in reverseResult.items()]
+        self.queueLock.acquire()
+        json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
+        self.queueLock.release()
+        return result, reverseResult
 
-def thread_dfs():
-    resultList, reverseResultList = [], []
-    while stack:
-        try:
-            queueLock.acquire()
-            shuffle(stack)
-            parent = stack.pop()
-            queueLock.release()
-            ans = dfs(parent)
-            if ans == None:
-                continue
+    def thread_dfs(self):
+        resultList, reverseResultList = [], []
+        while self.stack:
+            try:
+                self.queueLock.acquire()
+                shuffle(self.stack)
+                parent = self.stack.pop()
+                self.queueLock.release()
+                ans = self.dfs(parent)
+                if ans == None:
+                    continue
 
-            result, reverseResult = ans
-            resultList.extend(result)
-            reverseResultList.extend(reverseResult)
+                result, reverseResult = ans
+                resultList.extend(result)
+                reverseResultList.extend(reverseResult)
 
-            if len(resultList) > intsertNum:
-                Collect.insert(resultList)
-                print('insert resultList')
-                resultList = [] # insert完需要重置
-            if len(reverseResultList) > intsertNum:
-                reverseCollect.insert(reverseResultList)
-                print('insert reverseResultList')
-                reverseResultList = [] # insert完需要重置
-        except Exception as e:
-            queueLock.acquire()
-            json.dump({'stack':stack, 'visited':list(visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
-            queueLock.release()
-            print('==============================')
-            print(parent)
-            print(str(e))
-            print(stack)
-            print('==============================')
-            stack.append(parent)
-            print(stack)
-            raise e
+                if len(resultList) > self.intsertNum:
+                    self.Collect.insert(resultList)
+                    resultList = [] # insert完需要重置
+                if len(reverseResultList) > self.intsertNum:
+                    self.reverseCollect.insert(reverseResultList)
+                    reverseResultList = [] # insert完需要重置
+            except Exception as e:
+                self.queueLock.acquire()
+                json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
+                self.stack.append(parent)
+                self.queueLock.release()
+                print('==============================')
+                print(parent)
+                print(str(e))
+                print(self.stack)
+                print('==============================')
+                print(self.stack)
+                raise e
+        if resultList:
+            self.Collect.insert(resultList)
+        if reverseResultList:
+            self.reverseCollect.insert(reverseResultList)
+        
 
 if __name__ == '__main__':
-    if os.path.isfile('stack_visited.json'):
-        print('load stack_visited.json')
-        f = json.load(open('stack_visited.json', 'r'))
-        visited, stack = set(f['visited']), f['stack']
-    else:
-        visited, stack = set(root), [root]
-        dfs(root)
-
-    workers = [threading.Thread(target=thread_dfs, name=str(i)) for i in range(1)]
-
-    for thread in workers:
-       thread.start()
-
-    # Wait for all threads to complete
-    for thread in workers:
-        thread.join()
-
-    print('finished!!!')
+    WikiCategory('日本動畫師')
