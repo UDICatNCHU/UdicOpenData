@@ -3,7 +3,6 @@ import requests, json, os.path, threading, multiprocessing, pymongo
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
-from random import shuffle
 
 class WikiCategory(object):
     """docstring for WikiCategory"""
@@ -14,24 +13,21 @@ class WikiCategory(object):
         self.client = pymongo.MongoClient(None)['nlp']
         self.Collect = self.client['wiki']
         self.reverseCollect = self.client['wikiReverse']
-        self.insertNum = 50
         self.queueLock = threading.Lock()
         self.visited, self.stack = set(), []
 
         if root:
             self.visited, self.stack = set([root]), []
-            result, reverseResult = self.dfs(root)
-            self.Collect.insert(result)
-            self.reverseCollect.insert(reverseResult)
+            self.dfs(root)
         else:
             f = json.load(open('stack_visited.json', 'r'))
             self.visited, self.stack = set(f['visited']), f['stack']
 
+        # workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(2)]
         workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count())]
 
         for thread in workers:
            thread.start()
-
         # Wait for all threads to complete
         for thread in workers:
             thread.join()
@@ -45,7 +41,8 @@ class WikiCategory(object):
         result = defaultdict(dict)
         reverseResult = defaultdict(dict)
 
-        res = BeautifulSoup(requests.get(self.genUrl(parent)).text)
+        res = requests.get(self.genUrl(parent)).text
+        res = BeautifulSoup(res)
         # node
         for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
             tradText = self.openCC.convert(candidateOffsprings.text).replace('/', '-')
@@ -64,6 +61,7 @@ class WikiCategory(object):
             self.queueLock.acquire()
             json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
             self.queueLock.release()
+            print('skip\n')
             return
 
         # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
@@ -78,11 +76,11 @@ class WikiCategory(object):
             notyet = True
             for child in current:
                 tradChild = self.openCC.convert(child.text).replace('/', '-')
-                if notyet and tradChild == '下一頁' and child.has_attr('href'):
+                if notyet and tradChild != '下一頁' and child.has_attr('href'):
                     notyet = False
                     leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text).select('#mw-pages a'))
                 else:
-                    if tradChild != '下一頁' and tradChild != '上一頁':
+                    if tradChild not in ['下一頁', '上一頁']:
                         result[parent].setdefault('leafNode', []).append(tradChild)
                         reverseResult[tradChild].setdefault('ParentOfLeafNode', []).append(parent)
         # dump
@@ -91,47 +89,27 @@ class WikiCategory(object):
         self.queueLock.acquire()
         json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
         self.queueLock.release()
-        return result, reverseResult
+        if result and reverseResult:
+            self.Collect.insert(result)
+            self.reverseCollect.insert(reverseResult)
 
     def thread_dfs(self):
-        resultList, reverseResultList = [], []
-        while self.stack:
+        while True:
             try:
                 self.queueLock.acquire()
-                shuffle(self.stack)
-                parent = self.stack.pop()
-                self.queueLock.release()
-                ans = self.dfs(parent)
-
-                # return None，代表這條路以前走過了，應該是爬蟲莫名shutdown
-                # 然後從stack_visited.json復原回來時，會發現已經走過的路
-                # 但是還是要繼續走下去，只會那些node有些已經存進mongo裡面了
-                if ans == None:
-                    continue
-
-                result, reverseResult = ans
-                resultList.extend(result)
-                reverseResultList.extend(reverseResult)
-
-                if len(resultList) > self.insertNum:
-                    self.Collect.insert(resultList)
-                    resultList = [] # insert完需要重置
-                if len(reverseResultList) > self.insertNum:
-                    self.reverseCollect.insert(reverseResultList)
-                    reverseResultList = [] # insert完需要重置
+                if self.stack:
+                    parent = self.stack.pop()
+                    self.queueLock.release()
+                else:
+                    self.queueLock.release()
+                    break
+                self.dfs(parent)
             except Exception as e:
                 self.queueLock.acquire()
                 json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
                 self.stack.append(parent)
                 self.queueLock.release()
-
-                self.Collect.insert(resultList)
-                self.reverseCollect.insert(reverseResultList)
                 raise e
-        if resultList:
-            self.Collect.insert(resultList)
-        if reverseResultList:
-            self.reverseCollect.insert(reverseResultList)
 
     def mergeMongo(self):
         result = defaultdict(dict)
@@ -146,4 +124,5 @@ class WikiCategory(object):
 
 if __name__ == '__main__':
     wiki = WikiCategory('日本動畫')
+    # wiki = WikiCategory('萌擬人化')
     wiki.mergeMongo()
