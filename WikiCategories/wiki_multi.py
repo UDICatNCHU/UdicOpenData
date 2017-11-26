@@ -14,12 +14,12 @@ class WikiCategory(object):
         self.client = pymongo.MongoClient(None)['nlp']
         self.Collect = self.client['wiki']
         self.reverseCollect = self.client['wikiReverse']
-        self.intsertNum = 50
+        self.insertNum = 50
         self.queueLock = threading.Lock()
         self.visited, self.stack = set(), []
 
         if root:
-            self.visited, self.stack = set(root), []
+            self.visited, self.stack = set([root]), []
             result, reverseResult = self.dfs(root)
             self.Collect.insert(result)
             self.reverseCollect.insert(reverseResult)
@@ -52,7 +52,7 @@ class WikiCategory(object):
 
             # if it's a node hasn't been through
             # append these res to stack
-            if tradText not in self.visited:
+            if tradText not in self.visited and '維基人' not in tradText:
                 self.visited.add(tradText)
                 self.stack.append(tradText)
 
@@ -113,10 +113,10 @@ class WikiCategory(object):
                 resultList.extend(result)
                 reverseResultList.extend(reverseResult)
 
-                if len(resultList) > self.intsertNum:
+                if len(resultList) > self.insertNum:
                     self.Collect.insert(resultList)
                     resultList = [] # insert完需要重置
-                if len(reverseResultList) > self.intsertNum:
+                if len(reverseResultList) > self.insertNum:
                     self.reverseCollect.insert(reverseResultList)
                     reverseResultList = [] # insert完需要重置
             except Exception as e:
@@ -145,5 +145,5 @@ class WikiCategory(object):
         self.reverseCollect.insert(result)
 
 if __name__ == '__main__':
-    wiki = WikiCategory('動畫')
+    wiki = WikiCategory('日本動畫')
     wiki.mergeMongo()
