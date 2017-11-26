@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import requests, json, os.path, threading, multiprocessing, pymongo
+import requests, json, os.path, threading, multiprocessing, pymongo, logging
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
@@ -7,6 +7,7 @@ from opencc import OpenCC
 class WikiCategory(object):
     """docstring for WikiCategory"""
     def __init__(self, root=None):
+        logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO, filename='WikiCategory.log')
         self.openCC = OpenCC('s2t')
         self.root = root if root else '頁面分類'
         self.wikiBaseUrl = 'https://zh.wikipedia.org'
@@ -29,8 +30,10 @@ class WikiCategory(object):
         for thread in workers:
            thread.start()
         # Wait for all threads to complete
+        logging.info('wait for join')
         for thread in workers:
             thread.join()
+        logging.info('finish init')
 
     @staticmethod
     def genUrl(category):
@@ -38,6 +41,7 @@ class WikiCategory(object):
 
 
     def dfs(self, parent):
+        logging.info('now is at {}'.format(parent))
         result = defaultdict(dict)
         reverseResult = defaultdict(dict)
 
@@ -45,7 +49,8 @@ class WikiCategory(object):
         res = BeautifulSoup(res)
         # node
         for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
-            tradText = self.openCC.convert(candidateOffsprings.text).replace('/', '-')
+            # tradText = self.openCC.convert(candidateOffsprings.text).replace('/', '-')
+            tradText = candidateOffsprings.text
 
             # if it's a node hasn't been through
             # append these res to stack
@@ -61,7 +66,7 @@ class WikiCategory(object):
             self.queueLock.acquire()
             json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
             self.queueLock.release()
-            print('skip\n')
+            logging.info('skip {}'.format(parent))
             return
 
         # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
@@ -75,9 +80,10 @@ class WikiCategory(object):
             # 底部就不用重複加
             notyet = True
             for child in current:
-                tradChild = self.openCC.convert(child.text).replace('/', '-')
+                tradChild = child.text
                 if notyet and tradChild != '下一頁' and child.has_attr('href'):
                     notyet = False
+                    logging.info(parent)
                     leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text).select('#mw-pages a'))
                 else:
                     if tradChild not in ['下一頁', '上一頁']:
@@ -102,6 +108,7 @@ class WikiCategory(object):
                     self.queueLock.release()
                 else:
                     self.queueLock.release()
+                    logging.info("stack is empty!!")
                     break
                 self.dfs(parent)
             except Exception as e:
@@ -110,8 +117,10 @@ class WikiCategory(object):
                 self.stack.append(parent)
                 self.queueLock.release()
                 raise e
+        logging.info("finish thread job")                    
 
     def mergeMongo(self):
+        logging.info("merge")
         result = defaultdict(dict)
         for term in self.reverseCollect.find({}, {'_id':False}):
             for key, value in term.items():
@@ -123,6 +132,7 @@ class WikiCategory(object):
         self.reverseCollect.insert(result)
 
 if __name__ == '__main__':
-    wiki = WikiCategory('日本動畫')
+    wiki = WikiCategory('日本電視動畫')
+    # wiki = WikiCategory('富士電視台動畫')
     # wiki = WikiCategory('萌擬人化')
     wiki.mergeMongo()
