@@ -5,7 +5,6 @@ from collections import defaultdict
 from opencc import OpenCC
 from random import shuffle
 
-
 class WikiCategory(object):
     """docstring for WikiCategory"""
     def __init__(self, root=None):
@@ -62,11 +61,9 @@ class WikiCategory(object):
                 reverseResult[tradText].setdefault('parentNode', []).append(parent)
 
         if self.Collect.find({'key':parent}).limit(1).count():
-            print('skip ' + parent)
             self.queueLock.acquire()
             json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
             self.queueLock.release()
-            print('error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             return
 
         # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
@@ -105,6 +102,10 @@ class WikiCategory(object):
                 parent = self.stack.pop()
                 self.queueLock.release()
                 ans = self.dfs(parent)
+
+                # return None，代表這條路以前走過了，應該是爬蟲莫名shutdown
+                # 然後從stack_visited.json復原回來時，會發現已經走過的路
+                # 但是還是要繼續走下去，只會那些node有些已經存進mongo裡面了
                 if ans == None:
                     continue
 
@@ -123,18 +124,26 @@ class WikiCategory(object):
                 json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
                 self.stack.append(parent)
                 self.queueLock.release()
-                print('==============================')
-                print(parent)
-                print(str(e))
-                print(self.stack)
-                print('==============================')
-                print(self.stack)
+
+                self.Collect.insert(resultList)
+                self.reverseCollect.insert(reverseResultList)
                 raise e
         if resultList:
             self.Collect.insert(resultList)
         if reverseResultList:
             self.reverseCollect.insert(reverseResultList)
 
+    def mergeMongo(self):
+        result = defaultdict(dict)
+        for term in self.reverseCollect.find({}, {'_id':False}):
+            for key, value in term.items():
+                if key != 'key':
+                    result[term['key']].setdefault(key, []).extend(value)
+
+        result = [dict({'key':key}, **value) for key, value in result.items()]
+        self.reverseCollect.remove({})
+        self.reverseCollect.insert(result)
 
 if __name__ == '__main__':
-    WikiCategory('日本動畫師')
+    wiki = WikiCategory('動畫')
+    wiki.mergeMongo()
