@@ -81,7 +81,7 @@ class WikiCategory(object):
             notyet = True
             for child in current:
                 tradChild = child.text
-                if notyet and tradChild != '下一頁' and child.has_attr('href'):
+                if notyet and tradChild == '下一頁' and child.has_attr('href'):
                     notyet = False
                     logging.info(parent)
                     leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text).select('#mw-pages a'))
@@ -125,14 +125,31 @@ class WikiCategory(object):
         for term in self.reverseCollect.find({}, {'_id':False}):
             for key, value in term.items():
                 if key != 'key':
-                    result[term['key']].setdefault(key, []).extend(value)
+                    result[self.openCC.convert(term['key'])].setdefault(key, []).extend([self.openCC.convert(i) for i in value])
 
         result = [dict({'key':key}, **value) for key, value in result.items()]
         self.reverseCollect.remove({})
         self.reverseCollect.insert(result)
+        self.Collect.create_index([("key", pymongo.HASHED)])
+
+        result = defaultdict(dict)
+        for term in self.Collect.find({}, {'_id':False}):
+            for key, value in term.items():
+                if key != 'key':
+                    result[self.openCC.convert(term['key'])].setdefault(key, []).extend([self.openCC.convert(i) for i in value])
+
+        result = [dict({'key':key}, **value) for key, value in result.items()]
+        self.Collect.remove({})
+        self.Collect.insert(result)
+        self.reverseCollect.create_index([("key", pymongo.HASHED)])
 
 if __name__ == '__main__':
-    wiki = WikiCategory('日本電視動畫')
+    # wiki = WikiCategory('動畫')
+    # wiki = WikiCategory('日本電視動畫')
+    # wiki = WikiCategory('日本動畫師')
+    # wiki = WikiCategory('喜欢名侦探柯南的维基人')
+    # 日本原創電視動畫
+    
     # wiki = WikiCategory('富士電視台動畫')
-    # wiki = WikiCategory('萌擬人化')
+    wiki = WikiCategory('萌擬人化')
     wiki.mergeMongo()
