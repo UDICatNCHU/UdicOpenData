@@ -1,31 +1,34 @@
 # -*- coding: utf-8 -*-
-import requests, json, os.path, threading, multiprocessing, pymongo, logging
+import requests, json, os.path, threading, multiprocessing, pymongo, logging, sys
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
+from gensim import models
+
 
 class WikiCategory(object):
     """docstring for WikiCategory"""
-    def __init__(self, root=None):
+    def __init__(self):
         logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO, filename='WikiCategory.log')
         self.openCC = OpenCC('s2t')
-        self.root = root if root else '頁面分類'
         self.wikiBaseUrl = 'https://zh.wikipedia.org'
         self.client = pymongo.MongoClient(None)['nlp']
         self.Collect = self.client['wiki']
         self.reverseCollect = self.client['wikiReverse']
         self.queueLock = threading.Lock()
         self.visited, self.stack = set(), []
-
+        self.model = models.KeyedVectors.load_word2vec_format('./med400.model.bin', binary=True)
+        self.modelVocab = self.model.wv.vocab
+            
+    def crawl(self, root=None):
+        self.root = root
         if root:
             self.visited, self.stack = set([root]), []
             self.dfs(root)
         else:
             f = json.load(open('stack_visited.json', 'r'))
             self.visited, self.stack = set(f['visited']), f['stack']
-
-        # workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(2)]
-        workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count())]
+        workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count()*2)]
 
         for thread in workers:
            thread.start()
@@ -46,7 +49,7 @@ class WikiCategory(object):
         reverseResult = defaultdict(dict)
 
         res = requests.get(self.genUrl(parent)).text
-        res = BeautifulSoup(res)
+        res = BeautifulSoup(res, 'lxml')
         # node
         for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
             # tradText = self.openCC.convert(candidateOffsprings.text).replace('/', '-')
@@ -84,7 +87,7 @@ class WikiCategory(object):
                 if notyet and tradChild == '下一頁' and child.has_attr('href'):
                     notyet = False
                     logging.info(parent)
-                    leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text).select('#mw-pages a'))
+                    leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text, 'lxml').select('#mw-pages a'))
                 else:
                     if tradChild not in ['下一頁', '上一頁']:
                         result[parent].setdefault('leafNode', []).append(tradChild)
@@ -142,14 +145,52 @@ class WikiCategory(object):
         self.Collect.remove({})
         self.Collect.insert(result)
         self.reverseCollect.create_index([("key", pymongo.HASHED)])
+        logging.info("merge done")
+
+    @staticmethod
+    def findPath(keyword):
+        Collect = pymongo.MongoClient(None)['nlp']['wikiReverse']
+        cursor = list(Collect.find({'key':keyword}).limit(1))[0]
+        if 'ParentOfLeafNode' in cursor:
+            cursor = cursor['ParentOfLeafNode']
+        else:
+            cursor = cursor['parentNode']
+        queue = {(parent, (keyword, parent)) for parent in set(cursor) - set(keyword)}
+        while queue:
+            (keyword, path) = queue.pop()
+            cursor = Collect.find({'key':keyword}).limit(1)
+            if cursor.count():
+                parentNodes = list(cursor)[0]
+                parentNodes = parentNodes['parentNode']
+                for parent in set(parentNodes) - set(path):
+                    queue.add((parent, path + (parent, )))
+            else:
+                yield path
+
+    def findParent(self, keyword):
+        candidate = set()
+        for path in self.findPath(keyword):
+            for parent in path:
+                if parent in self.modelVocab and parent != keyword:
+                    candidate.add((parent, self.model.similarity(keyword, parent)))
+                    break
+        return sorted(candidate, key=lambda x:-x[1])
+
 
 if __name__ == '__main__':
-    # wiki = WikiCategory('動畫')
-    # wiki = WikiCategory('日本電視動畫')
-    # wiki = WikiCategory('日本動畫師')
-    # wiki = WikiCategory('喜欢名侦探柯南的维基人')
-    # 日本原創電視動畫
-    
-    # wiki = WikiCategory('富士電視台動畫')
-    wiki = WikiCategory('萌擬人化')
-    wiki.mergeMongo()
+    wiki = WikiCategory()
+    # if len(sys.argv) == 2 and sys.argv[1] == 'load':
+    #     wiki.crawl()
+    #     wiki.mergeMongo()
+    # else:
+    #     wiki.crawl('日本動畫師')
+    #     # wiki.crawl('媒體')
+    #     # wiki.crawl('日本電視動畫')
+    #     # wiki.crawl('喜欢名侦探柯南的维基人')
+    #     # wiki.crawl('日本原創電視動畫')
+    #     # wiki.crawl('富士電視台動畫')
+    #     # wiki.crawl('萌擬人化')
+    #     wiki.mergeMongo()
+    # wiki.mergeMongo()
+    print(list(wiki.findPath(sys.argv[1])))
+    print(list(wiki.findParent(sys.argv[1])))
