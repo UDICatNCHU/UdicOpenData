@@ -37,9 +37,8 @@ class WikiCategory(object):
 
             # 為了避免stack一開始就太空導致沒有工作做，先把stack塞多點工作
             self.dfs(root)
-            self.dfs(self.stack.pop())
-            self.dfs(self.stack.pop())
-
+            self.dfs(self.stack.pop(0))
+            self.dfs(self.stack.pop(0))
         else:
             f = json.load(open('stack_visited.json', 'r'))
             self.visited, self.stack = set(f['visited']), f['stack']
@@ -70,7 +69,8 @@ class WikiCategory(object):
 
             # if it's a node hasn't been through
             # append these res to stack
-            if tradText not in self.visited and tradText not in ['維基人', '總類模板', '維基百科站務‎', '維基百科分類']:
+            if tradText not in self.visited and True not in {i in tradText for i in ('維基人', '维基人', '總類模板', '维基百科', '維基百科')}:
+                print(tradText)
                 self.visited.add(tradText)
                 self.stack.append(tradText)
 
@@ -195,7 +195,6 @@ if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == 'load':
         wiki.crawl()
     else:
-        wiki.crawl('頁面分類')
         # wiki.crawl('各国动画师')
         # wiki.crawl('中央大学校友')
         # wiki.crawl('日本動畫師')
@@ -205,8 +204,8 @@ if __name__ == '__main__':
         # wiki.crawl('日本原創電視動畫')
         # wiki.crawl('富士電視台動畫')
         # wiki.crawl('萌擬人化')
-    wiki.mergeMongo()
-    wiki.w2vInit()
+    # wiki.mergeMongo()
+    # wiki.w2vInit()
     # 新海誠
-    print(list(wiki.findPath(sys.argv[1])))
-    print(list(wiki.findParent(sys.argv[1])))
+    # print(list(wiki.findPath(sys.argv[1])))
+    # print(list(wiki.findParent(sys.argv[1])))
