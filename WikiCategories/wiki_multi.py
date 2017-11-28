@@ -3,9 +3,10 @@ import requests, json, os.path, threading, multiprocessing, pymongo, logging, sy
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
+from ngram import NGram
 
-# develop = True
-develop = False
+develop = True
+# develop = False
 if develop:
     database = 'test'
 else:
@@ -26,13 +27,19 @@ class WikiCategory(object):
     def w2vInit(self):
         from gensim import models
         self.model = models.KeyedVectors.load_word2vec_format('./med400.model.bin', binary=True)
-        self.modelVocab = self.model.wv.vocab
+        self.modelVocab = self.model.wv.vocab.keys()
+        self.modelG = NGram(self.modelVocab)
             
     def crawl(self, root=None):
         self.root = root
         if root:
             self.visited, self.stack = set([root]), []
+
+            # 為了避免stack一開始就太空導致沒有工作做，先把stack塞多點工作
             self.dfs(root)
+            self.dfs(self.stack.pop())
+            self.dfs(self.stack.pop())
+
         else:
             f = json.load(open('stack_visited.json', 'r'))
             self.visited, self.stack = set(f['visited']), f['stack']
@@ -63,20 +70,13 @@ class WikiCategory(object):
 
             # if it's a node hasn't been through
             # append these res to stack
-            if tradText not in self.visited and '維基人' not in tradText:
+            if tradText not in self.visited and tradText not in ['維基人', '總類模板', '維基百科站務‎', '維基百科分類']:
                 self.visited.add(tradText)
                 self.stack.append(tradText)
 
                 # build dictionary
                 result[parent].setdefault('node', []).append(tradText)
                 reverseResult[tradText].setdefault('parentNode', []).append(parent)
-
-        if self.Collect.find({'key':parent}).limit(1).count():
-            self.queueLock.acquire()
-            json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
-            self.queueLock.release()
-            logging.info('skip {}'.format(parent))
-            return
 
         # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
         leafNodeList = [res.select('#mw-pages a')]
@@ -137,11 +137,15 @@ class WikiCategory(object):
             for term in collect.find({}, {'_id':False}):
                 for key, value in term.items():
                     if key != 'key':
-                        result[self.openCC.convert(term['key']).lower()].setdefault(key, []).extend([self.openCC.convert(i).lower() for i in value])
+                        result[self.openCC.convert(term['key']).lower()].setdefault(key, set()).update({self.openCC.convert(i).lower() for i in value})
 
-            result = [dict({'key':key}, **value) for key, value in result.items()]
+            insertList = []
+            for key, value in result.items():
+                for k, s in value.items():
+                    value[k] = list(s)
+                insertList.append(dict({'key':key}, **value))
             collect.remove({})
-            collect.insert(result)
+            collect.insert(insertList)
             collect.create_index([("key", pymongo.HASHED)])
             
         logging.info("merge done")
@@ -155,7 +159,7 @@ class WikiCategory(object):
         else:
             cursor = cursor['parentNode']
 
-        queue = {(parent, (keyword, parent)) for parent in set(cursor) - set(keyword)}
+        queue = {(parent, (parent,)) for parent in set(cursor) - set(keyword)}
 
         while queue:
             (keyword, path) = queue.pop()
@@ -175,22 +179,24 @@ class WikiCategory(object):
         candidate = set()
         for path in self.findPath(keyword):
             for parent in path:
-                if parent in self.modelVocab and parent != keyword:
-                    candidate.add((parent, self.model.similarity(keyword, parent)))
-                    break
+                if parent not in self.modelVocab:
+                    parent = self.modelG.find(parent)
+                candidate.add((parent, self.model.similarity(keyword, parent)))
+                break
         return sorted(candidate, key=lambda x:-x[1])
 
-    # @staticmethod
-    # def ngram(keyword):
-        
-
+    def ngram(self, keyword):
+        if not hasattr(self, 'G'):
+            G = NGram((i['key'] for i in self.reverseCollect.find({}, {'key':1, '_id':False})))
+        return G.find(keyword)
 
 if __name__ == '__main__':
     wiki = WikiCategory()
     if len(sys.argv) == 2 and sys.argv[1] == 'load':
         wiki.crawl()
-        wiki.mergeMongo()
-    # else:
+    else:
+        wiki.crawl('頁面分類')
+        # wiki.crawl('各国动画师')
         # wiki.crawl('中央大学校友')
         # wiki.crawl('日本動畫師')
         # wiki.crawl('媒體')
@@ -199,8 +205,8 @@ if __name__ == '__main__':
         # wiki.crawl('日本原創電視動畫')
         # wiki.crawl('富士電視台動畫')
         # wiki.crawl('萌擬人化')
-        # wiki.mergeMongo()
-    # wiki.mergeMongo()
+    wiki.mergeMongo()
     wiki.w2vInit()
+    # 新海誠
     print(list(wiki.findPath(sys.argv[1])))
     print(list(wiki.findParent(sys.argv[1])))
