@@ -3,8 +3,13 @@ import requests, json, os.path, threading, multiprocessing, pymongo, logging, sy
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
-from gensim import models
 
+develop = True
+# develop = False
+if develop:
+    database = 'test'
+else:
+    database = 'nlp'
 
 class WikiCategory(object):
     """docstring for WikiCategory"""
@@ -12,11 +17,14 @@ class WikiCategory(object):
         logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO, filename='WikiCategory.log')
         self.openCC = OpenCC('s2t')
         self.wikiBaseUrl = 'https://zh.wikipedia.org'
-        self.client = pymongo.MongoClient(None)['nlp']
+        self.client = pymongo.MongoClient(None)[database]
         self.Collect = self.client['wiki']
         self.reverseCollect = self.client['wikiReverse']
         self.queueLock = threading.Lock()
         self.visited, self.stack = set(), []
+
+    def w2vInit(self):
+        from gensim import models
         self.model = models.KeyedVectors.load_word2vec_format('./med400.model.bin', binary=True)
         self.modelVocab = self.model.wv.vocab
             
@@ -52,7 +60,6 @@ class WikiCategory(object):
         res = BeautifulSoup(res, 'lxml')
         # node
         for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
-            # tradText = self.openCC.convert(candidateOffsprings.text).replace('/', '-')
             tradText = candidateOffsprings.text
 
             # if it's a node hasn't been through
@@ -84,14 +91,14 @@ class WikiCategory(object):
             notyet = True
             for child in current:
                 tradChild = child.text
-                if notyet and tradChild == '下一頁' and child.has_attr('href'):
+                if notyet and tradChild in ('下一頁', '下一页') and child.has_attr('href'):
                     notyet = False
-                    logging.info(parent)
                     leafNodeList.append(BeautifulSoup(requests.get(self.wikiBaseUrl + child['href']).text, 'lxml').select('#mw-pages a'))
                 else:
-                    if tradChild not in ['下一頁', '上一頁']:
+                    if tradChild not in ['下一頁', '上一頁', '下一页', '上一页']:
                         result[parent].setdefault('leafNode', []).append(tradChild)
                         reverseResult[tradChild].setdefault('ParentOfLeafNode', []).append(parent)
+
         # dump
         result = [dict({'key':key}, **value) for key, value in result.items()]
         reverseResult = [dict({'key':key}, **value) for key, value in reverseResult.items()]
@@ -123,28 +130,21 @@ class WikiCategory(object):
         logging.info("finish thread job")                    
 
     def mergeMongo(self):
-        logging.info("merge")
-        result = defaultdict(dict)
-        for term in self.reverseCollect.find({}, {'_id':False}):
-            for key, value in term.items():
-                if key != 'key':
-                    result[self.openCC.convert(term['key'])].setdefault(key, []).extend([self.openCC.convert(i) for i in value])
+        logging.info("start merge")
+        collectList = [self.reverseCollect, self.Collect]
 
-        result = [dict({'key':key}, **value) for key, value in result.items()]
-        self.reverseCollect.remove({})
-        self.reverseCollect.insert(result)
-        self.Collect.create_index([("key", pymongo.HASHED)])
+        for collect in collectList:
+            result = defaultdict(dict)
+            for term in collect.find({}, {'_id':False}):
+                for key, value in term.items():
+                    if key != 'key':
+                        result[self.openCC.convert(term['key']).lower()].setdefault(key, []).extend([self.openCC.convert(i).lower() for i in value])
 
-        result = defaultdict(dict)
-        for term in self.Collect.find({}, {'_id':False}):
-            for key, value in term.items():
-                if key != 'key':
-                    result[self.openCC.convert(term['key'])].setdefault(key, []).extend([self.openCC.convert(i) for i in value])
-
-        result = [dict({'key':key}, **value) for key, value in result.items()]
-        self.Collect.remove({})
-        self.Collect.insert(result)
-        self.reverseCollect.create_index([("key", pymongo.HASHED)])
+            result = [dict({'key':key}, **value) for key, value in result.items()]
+            collect.remove({})
+            collect.insert(result)
+            collect.create_index([("key", pymongo.HASHED)])
+            
         logging.info("merge done")
 
     @staticmethod
@@ -174,23 +174,24 @@ class WikiCategory(object):
                 if parent in self.modelVocab and parent != keyword:
                     candidate.add((parent, self.model.similarity(keyword, parent)))
                     break
-        return sorted(candidate, key=lambda x:-x[1])
+        return sorted(candidate, key=lambda x:-x[1])[0]
 
 
 if __name__ == '__main__':
     wiki = WikiCategory()
-    # if len(sys.argv) == 2 and sys.argv[1] == 'load':
-    #     wiki.crawl()
-    #     wiki.mergeMongo()
-    # else:
-    #     wiki.crawl('日本動畫師')
-    #     # wiki.crawl('媒體')
-    #     # wiki.crawl('日本電視動畫')
-    #     # wiki.crawl('喜欢名侦探柯南的维基人')
-    #     # wiki.crawl('日本原創電視動畫')
-    #     # wiki.crawl('富士電視台動畫')
-    #     # wiki.crawl('萌擬人化')
-    #     wiki.mergeMongo()
+    if len(sys.argv) == 2 and sys.argv[1] == 'load':
+        wiki.crawl()
+        wiki.mergeMongo()
+    else:
+        wiki.crawl('中央大学校友')
+        wiki.crawl('日本動畫師')
+        # wiki.crawl('媒體')
+        # wiki.crawl('日本電視動畫')
+        # wiki.crawl('喜欢名侦探柯南的维基人')
+        # wiki.crawl('日本原創電視動畫')
+        # wiki.crawl('富士電視台動畫')
+        # wiki.crawl('萌擬人化')
+        wiki.mergeMongo()
     # wiki.mergeMongo()
-    print(list(wiki.findPath(sys.argv[1])))
-    print(list(wiki.findParent(sys.argv[1])))
+    # print(list(wiki.findPath(sys.argv[1])))
+    # print(list(wiki.findParent(sys.argv[1])))
