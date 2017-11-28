@@ -156,7 +156,6 @@ class WikiCategory(object):
             cursor = cursor['parentNode']
 
         queue = {(parent, (keyword, parent)) for parent in set(cursor) - set(keyword)}
-        visited = {keyword}.union(set(cursor))
 
         while queue:
             (keyword, path) = queue.pop()
@@ -164,13 +163,11 @@ class WikiCategory(object):
             if cursor.count():
                 parentNodes = list(cursor)[0]
                 parentNodes = parentNodes['parentNode']
-                # for parent in set(parentNodes) - set(path):
                 for parent in parentNodes:
-                    if parent in visited:
-                        yield path
+                    if parent in path:
+                        yield path[:path.index(parent) + 1]
                     else:
                         queue.add((parent, path + (parent, )))
-                visited.update(set(parentNodes))
             else:
                 yield path
 
@@ -204,6 +201,6 @@ if __name__ == '__main__':
         # wiki.crawl('萌擬人化')
         # wiki.mergeMongo()
     # wiki.mergeMongo()
-    # wiki.w2vInit()
+    wiki.w2vInit()
     print(list(wiki.findPath(sys.argv[1])))
     print(list(wiki.findParent(sys.argv[1])))
