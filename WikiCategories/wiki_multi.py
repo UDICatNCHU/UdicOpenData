@@ -4,8 +4,8 @@ from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
 
-develop = True
-# develop = False
+# develop = True
+develop = False
 if develop:
     database = 'test'
 else:
@@ -49,7 +49,6 @@ class WikiCategory(object):
     @staticmethod
     def genUrl(category):
         return 'https://zh.wikipedia.org/wiki/Category:' + category
-
 
     def dfs(self, parent):
         logging.info('now is at {}'.format(parent))
@@ -149,21 +148,29 @@ class WikiCategory(object):
 
     @staticmethod
     def findPath(keyword):
-        Collect = pymongo.MongoClient(None)['nlp']['wikiReverse']
+        Collect = pymongo.MongoClient(None)[database]['wikiReverse']
         cursor = list(Collect.find({'key':keyword}).limit(1))[0]
         if 'ParentOfLeafNode' in cursor:
             cursor = cursor['ParentOfLeafNode']
         else:
             cursor = cursor['parentNode']
+
         queue = {(parent, (keyword, parent)) for parent in set(cursor) - set(keyword)}
+        visited = {keyword}.union(set(cursor))
+
         while queue:
             (keyword, path) = queue.pop()
             cursor = Collect.find({'key':keyword}).limit(1)
             if cursor.count():
                 parentNodes = list(cursor)[0]
                 parentNodes = parentNodes['parentNode']
-                for parent in set(parentNodes) - set(path):
-                    queue.add((parent, path + (parent, )))
+                # for parent in set(parentNodes) - set(path):
+                for parent in parentNodes:
+                    if parent in visited:
+                        yield path
+                    else:
+                        queue.add((parent, path + (parent, )))
+                visited.update(set(parentNodes))
             else:
                 yield path
 
@@ -174,7 +181,11 @@ class WikiCategory(object):
                 if parent in self.modelVocab and parent != keyword:
                     candidate.add((parent, self.model.similarity(keyword, parent)))
                     break
-        return sorted(candidate, key=lambda x:-x[1])[0]
+        return sorted(candidate, key=lambda x:-x[1])
+
+    # @staticmethod
+    # def ngram(keyword):
+        
 
 
 if __name__ == '__main__':
@@ -182,16 +193,17 @@ if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == 'load':
         wiki.crawl()
         wiki.mergeMongo()
-    else:
-        wiki.crawl('中央大学校友')
-        wiki.crawl('日本動畫師')
+    # else:
+        # wiki.crawl('中央大学校友')
+        # wiki.crawl('日本動畫師')
         # wiki.crawl('媒體')
         # wiki.crawl('日本電視動畫')
         # wiki.crawl('喜欢名侦探柯南的维基人')
         # wiki.crawl('日本原創電視動畫')
         # wiki.crawl('富士電視台動畫')
         # wiki.crawl('萌擬人化')
-        wiki.mergeMongo()
+        # wiki.mergeMongo()
     # wiki.mergeMongo()
-    # print(list(wiki.findPath(sys.argv[1])))
-    # print(list(wiki.findParent(sys.argv[1])))
+    # wiki.w2vInit()
+    print(list(wiki.findPath(sys.argv[1])))
+    print(list(wiki.findParent(sys.argv[1])))
