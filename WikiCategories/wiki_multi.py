@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import requests, json, os.path, threading, multiprocessing, pymongo, logging, sys
+import requests, os.path, threading, multiprocessing, pymongo, logging, sys
 from bs4 import BeautifulSoup
 from collections import defaultdict
 from opencc import OpenCC
 from ngram import NGram
+from itertools import dropwhile
 
 develop = True
 # develop = False
@@ -30,19 +31,18 @@ class WikiCategory(object):
         self.modelVocab = self.model.wv.vocab.keys()
         self.modelG = NGram(self.modelVocab)
             
-    def crawl(self, root=None):
-        self.root = root
-        if root:
-            self.visited, self.stack = set([root]), []
+    def crawl(self, root):
+        # 為了避免stack一開始就太空導致沒有工作做，先把stack塞多點工作
+        self.dfs(root)
+        self.dfs(self.stack.pop(0))
+        self.dfs(self.stack.pop(0))
+        self.dfs(self.stack.pop(0))
+        self.dfs(self.stack.pop(0))
 
-            # 為了避免stack一開始就太空導致沒有工作做，先把stack塞多點工作
-            self.dfs(root)
-            self.dfs(self.stack.pop(0))
-            self.dfs(self.stack.pop(0))
-        else:
-            f = json.load(open('stack_visited.json', 'r'))
-            self.visited, self.stack = set(f['visited']), f['stack']
-        workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count()*2)]
+        self.thread_init()
+
+    def thread_init(self):
+        workers = [threading.Thread(target=self.thread_dfs, name=str(i)) for i in range(multiprocessing.cpu_count())]
 
         for thread in workers:
            thread.start()
@@ -59,24 +59,20 @@ class WikiCategory(object):
     def dfs(self, parent):
         logging.info('now is at {}'.format(parent))
         result = defaultdict(dict)
-        reverseResult = defaultdict(dict)
 
         res = requests.get(self.genUrl(parent)).text
         res = BeautifulSoup(res, 'lxml')
         # node
         for candidateOffsprings in res.select('.CategoryTreeLabelCategory'):
             tradText = candidateOffsprings.text
+            
+            # build dictionary
+            result[parent].setdefault('node', []).append(tradText)
 
             # if it's a node hasn't been through
             # append these res to stack
             if tradText not in self.visited and True not in {i in tradText for i in ('維基人', '维基人', '總類模板', '维基百科', '維基百科')}:
-                print(tradText)
-                self.visited.add(tradText)
                 self.stack.append(tradText)
-
-                # build dictionary
-                result[parent].setdefault('node', []).append(tradText)
-                reverseResult[tradText].setdefault('parentNode', []).append(parent)
 
         # leafNode (要注意wiki的leafNode有下一頁的連結，都要traverse完)
         leafNodeList = [res.select('#mw-pages a')]
@@ -96,17 +92,12 @@ class WikiCategory(object):
                 else:
                     if tradChild not in ['下一頁', '上一頁', '下一页', '上一页']:
                         result[parent].setdefault('leafNode', []).append(tradChild)
-                        reverseResult[tradChild].setdefault('ParentOfLeafNode', []).append(parent)
 
-        # dump
+        # insert
         result = [dict({'key':key}, **value) for key, value in result.items()]
-        reverseResult = [dict({'key':key}, **value) for key, value in reverseResult.items()]
-        self.queueLock.acquire()
-        json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
-        self.queueLock.release()
-        if result and reverseResult:
+        if result:
             self.Collect.insert(result)
-            self.reverseCollect.insert(reverseResult)
+        self.visited.add(parent)
 
     def thread_dfs(self):
         while True:
@@ -122,33 +113,70 @@ class WikiCategory(object):
                 self.dfs(parent)
             except Exception as e:
                 self.queueLock.acquire()
-                json.dump({'stack':self.stack, 'visited':list(self.visited)}, open('stack_visited.json', 'w', encoding='utf-8'))
                 self.stack.append(parent)
                 self.queueLock.release()
                 raise e
-        logging.info("finish thread job")                    
+        logging.info("finish thread job") 
+
+    def checkMissing(self):
+        self.visited = set()
+        while True:
+            # 把mongo所有點都看過，如果有一個名詞出現在node陣列中，但是在wiki裏面卻查不到該名詞，代表dfs因為不知名原因沒有繼續鑽進去爬，所以現在 挑錯就把他挑出來，繼續爬
+            self.stack = []
+            # count = 1
+            for index, child in enumerate(self.Collect.find({}, {'_id':False})):
+                self.visited.add(child['key'])
+                # count = index
+                if 'node' in child:
+                    for node in child["node"]:
+                        if not self.Collect.find({'key':node}).limit(1).count():
+                            self.stack.append(node)
+            if not self.stack:
+                # 經過再三檢查，確定沒有漏掉的node沒有繼續dfs進去後，就可以結束了
+                break
+            print('miss : {}'.format(str(len(self.stack) / index)))
+            print(self.stack)
+            # 把以前沒爬到的都放進stack中之後就起動thread去爬吧
+            self.thread_init()
+
+
 
     def mergeMongo(self):
         logging.info("start merge")
-        collectList = [self.reverseCollect, self.Collect]
 
-        for collect in collectList:
-            result = defaultdict(dict)
-            for term in collect.find({}, {'_id':False}):
-                for key, value in term.items():
-                    if key != 'key':
-                        result[self.openCC.convert(term['key']).lower()].setdefault(key, set()).update({self.openCC.convert(i).lower() for i in value})
+        # merge Collect
+        result = defaultdict(dict)
+        for term in self.Collect.find({}, {'_id':False}):
+            for key, value in term.items():
+                if key != 'key':
+                    result[self.openCC.convert(term['key']).lower()].setdefault(key, set()).update({self.openCC.convert(i).lower() for i in value})
 
-            insertList = []
-            for key, value in result.items():
-                for k, s in value.items():
-                    value[k] = list(s)
-                insertList.append(dict({'key':key}, **value))
-            collect.remove({})
-            collect.insert(insertList)
-            collect.create_index([("key", pymongo.HASHED)])
-            
+        insertList = []
+        for key, value in result.items():
+            for k, s in value.items():
+                value[k] = list(s)
+            insertList.append(dict({'key':key}, **value))
+        self.Collect.remove({})
+        self.Collect.insert(insertList)
+        self.Collect.create_index([("key", pymongo.HASHED)])
+
         logging.info("merge done")
+
+        self.buildInvertedIndex()
+
+    def buildInvertedIndex(self):
+        # build reverseCollect
+        reverseResult = defaultdict(dict)
+        for parent in self.Collect.find({}, {'_id':False}):
+            for leafNode in parent.get('leafNode', []):
+                reverseResult[leafNode].setdefault('ParentOfLeafNode', []).append(parent['key'])
+            for node in parent.get('node', []):
+                reverseResult[node].setdefault('parentNode', []).append(parent['key'])
+        reverseResult = [dict({'key':key}, **value) for key, value in reverseResult.items()]
+        self.reverseCollect.remove({})
+        self.reverseCollect.insert(reverseResult)
+        logging.info("buildInvertedIndex done")
+
 
     @staticmethod
     def findPath(keyword):
@@ -159,7 +187,7 @@ class WikiCategory(object):
         else:
             cursor = cursor['parentNode']
 
-        queue = {(parent, (parent,)) for parent in set(cursor) - set(keyword)}
+        queue = {(parent, (keyword, parent,)) for parent in set(cursor) - set(keyword)}
 
         while queue:
             (keyword, path) = queue.pop()
@@ -178,7 +206,7 @@ class WikiCategory(object):
     def findParent(self, keyword):
         candidate = set()
         for path in self.findPath(keyword):
-            for parent in path:
+            for parent in dropwhile(lambda x:x==keyword, path):
                 if parent not in self.modelVocab:
                     parent = self.modelG.find(parent)
                 candidate.add((parent, self.model.similarity(keyword, parent)))
@@ -191,21 +219,33 @@ class WikiCategory(object):
         return G.find(keyword)
 
 if __name__ == '__main__':
+    import argparse
+    """The main routine."""
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+        build kcm model and insert it into mongoDB with command line.    
+    ''')
+    parser.add_argument('-mode', metavar='mode of crawler', help='mode of crawler', type=bool)
+    parser.add_argument('-k', metavar='keyword', help='keyword')
+    parser.add_argument('-fix', metavar='fix missing node', help='fix missing node', type=bool)
+    args = parser.parse_args()
     wiki = WikiCategory()
-    if len(sys.argv) == 2 and sys.argv[1] == 'load':
-        wiki.crawl()
-    else:
+    if args.mode:
+        # wiki.crawl('頁面分類')
         # wiki.crawl('各国动画师')
         # wiki.crawl('中央大学校友')
-        # wiki.crawl('日本動畫師')
+        wiki.crawl('日本動畫師')
         # wiki.crawl('媒體')
         # wiki.crawl('日本電視動畫')
         # wiki.crawl('喜欢名侦探柯南的维基人')
         # wiki.crawl('日本原創電視動畫')
         # wiki.crawl('富士電視台動畫')
         # wiki.crawl('萌擬人化')
-    # wiki.mergeMongo()
-    # wiki.w2vInit()
-    # 新海誠
-    # print(list(wiki.findPath(sys.argv[1])))
-    # print(list(wiki.findParent(sys.argv[1])))
+        wiki.mergeMongo()
+    elif args.k:
+        wiki.w2vInit()
+        # 新海誠
+        print(list(wiki.findPath(args.k)))
+        print(list(wiki.findParent(args.k)))
+    elif args.fix:
+        wiki.checkMissing()
+        wiki.mergeMongo()
