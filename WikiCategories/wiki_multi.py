@@ -6,8 +6,8 @@ from opencc import OpenCC
 from ngram import NGram
 from itertools import dropwhile
 
-develop = True
-# develop = False
+# develop = True
+develop = False
 if develop:
     database = 'test'
 else:
@@ -96,6 +96,8 @@ class WikiCategory(object):
         # insert
         result = [dict({'key':key}, **value) for key, value in result.items()]
         if result:
+            # [BUG] pymongo.errors.DocumentTooLarge: BSON document too large (39247368 bytes) - the connected server supports BSON document sizes up to 16777216 bytes.
+            # use Mongo GridFS instead !!!
             self.Collect.insert(result)
         self.visited.add(parent)
 
@@ -115,6 +117,8 @@ class WikiCategory(object):
                 self.queueLock.acquire()
                 self.stack.append(parent)
                 self.queueLock.release()
+                logging.info('{} has occured an Exception'.format(parent))
+                logging.info(e)
                 raise e
         logging.info("finish thread job") 
 
@@ -134,8 +138,7 @@ class WikiCategory(object):
             if not self.stack:
                 # 經過再三檢查，確定沒有漏掉的node沒有繼續dfs進去後，就可以結束了
                 break
-            print('miss : {}'.format(str(len(self.stack) / index)))
-            print(self.stack)
+            logging.info('miss : {}'.format(str(len(self.stack) / index)))
             # 把以前沒爬到的都放進stack中之後就起動thread去爬吧
             self.thread_init()
 
@@ -204,14 +207,30 @@ class WikiCategory(object):
                 yield path
 
     def findParent(self, keyword):
-        candidate = set()
+        cursor = self.reverseCollect.find({'key':keyword}, {'_id':False}).limit(1)
+        if not cursor.count():
+            keyword = self.modelG.find(keyword)
+            cursor = self.reverseCollect.find({'key':keyword}, {'_id':False}).limit(1)
+
+        if keyword not in self.modelVocab and cursor.count():
+            cursor = list(cursor)[0]
+            return cursor.get('ParentOfLeafNode', 'parentNode')
+
+        candidate = {}
         for path in self.findPath(keyword):
+            alreadyFind = False
             for parent in dropwhile(lambda x:x==keyword, path):
+                if not alreadyFind and keyword not in parent:
+                    alreadyFind = True
+                    KeyParent = parent
+                    candidate[parent] = 0
+                
                 if parent not in self.modelVocab:
                     parent = self.modelG.find(parent)
-                candidate.add((parent, self.model.similarity(keyword, parent)))
+                similarity = self.model.similarity(keyword, parent)
+                candidate[KeyParent] = similarity if candidate.get(KeyParent, 0) < similarity else candidate.get(KeyParent, 0)
                 break
-        return sorted(candidate, key=lambda x:-x[1])
+        return sorted(candidate.items(), key=lambda x:-x[1])
 
     def ngram(self, keyword):
         if not hasattr(self, 'G'):
@@ -247,5 +266,5 @@ if __name__ == '__main__':
         print(list(wiki.findPath(args.k)))
         print(list(wiki.findParent(args.k)))
     elif args.fix:
-        wiki.checkMissing()
+        # wiki.checkMissing()
         wiki.mergeMongo()
