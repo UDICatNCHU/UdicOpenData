@@ -6,7 +6,7 @@
 
 ## Usage
 
-`pip install udicOpenData`
+安裝：`pip install udicOpenData`
 
 1. 濾掉stopwords  
 p.s. rm stop words時就會跟著載入`2.`實驗室字典了
