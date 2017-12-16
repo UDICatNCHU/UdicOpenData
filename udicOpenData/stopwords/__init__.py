@@ -14,4 +14,4 @@ def rmsw(doc):
         return True
     doc = re.sub(r"[http|www]\S+", "", doc)
     doc = doc.strip()
-    return [i for i in jieba.cut(doc) if i not in STOPWORD_JSON and is_chinese(i) and i not in ['\xa0', '\xc2']]
+    return (i for i in jieba.cut(doc) if i not in STOPWORD_JSON and is_chinese(i) and i not in ['\xa0', '\xc2'])
