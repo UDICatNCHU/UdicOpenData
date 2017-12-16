@@ -6,10 +6,10 @@ udicOpenData/main.py
 udicOpenData/shuffleFile.py
 udicOpenData/text2json.py
 udicOpenData/text2json_nospark.py
-udicOpenData/dictionary/NameDict_Ch_v2
 udicOpenData/dictionary/__init__.py
 udicOpenData/dictionary/attractions.dict.txt
 udicOpenData/dictionary/dict.txt.big.txt
+udicOpenData/dictionary/wiki.dict.txt
 udicOpenData/dictionary/鄉民擴充辭典.txt
 udicOpenData/stopwords/__init__.py
 udicOpenData/stopwords/stopwords.json
