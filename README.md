@@ -8,15 +8,19 @@
 
 安裝：`pip install udicOpenData`
 
-1. 濾掉stopwords  
-p.s. rm stop words時就會跟著載入`2.`實驗室字典了
+1. 載入實驗室字典
+```
+from udicOpenData.dictionary import *
+```
+2. 濾掉stopwords  
+p.s. rm stop words時就會跟著載入`1.`實驗室字典了
   ```
   from udicOpenData.stopwords import *
   rmsw(要過濾的string)
   ```
-2. 載入實驗室字典
+3. 只留特定詞性
 ```
-from udicOpenData.dictionary import *
+rmsw(要過濾的string, 詞性)
 ```
 
 ## 所有語料大小：
