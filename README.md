@@ -20,7 +20,7 @@ p.s. rm stop words時就會跟著載入`1.`實驗室字典了
   ```
 3. 只留特定詞性
 ```
-rmsw(要過濾的string, 詞性)
+rmsw(要過濾的string, 詞性(optional n, v, a ...etc), 只限中文（optional True/False）)
 ```
 
 ## 所有語料大小：
