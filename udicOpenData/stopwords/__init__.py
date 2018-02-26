@@ -23,7 +23,7 @@ def rmsw(doc, flag=False):
 
     # flag means showing part of speech
     if flag:
-        return (i for i in pseg.cut(doc)
+        return (tuple(i) for i in pseg.cut(doc)
             if i.word not in STOPWORD_JSON 
             and (is_chinese(i.word) or (is_english(i.word) and len(i.word) >= 2))
             and i.word not in ['\xa0', '\xc2'] 
