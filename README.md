@@ -1,27 +1,26 @@
 # Open Sentiment Training Data
 
-有鑑於Training Data實在太難找了，所以乾脆自己做一個然後公開  
-期望大家都能夠共享自己的Training Data  
-讓 Sentiment Analysis 能更進一步~
+自己蒐集的training data、字典和stopwords並且包成package，讓大家不用重複造輪子。
 
 ## Usage
 
 安裝：`pip install udicOpenData`
 
-1. 載入實驗室字典
+1. 載入實驗室字典, import dictionary
 ```
 from udicOpenData.dictionary import *
 ```
-2. 濾掉stopwords  
+2. 濾掉stopwords, remove stopwords
 p.s. rm stop words時就會跟著載入`1.`實驗室字典了
   ```
   from udicOpenData.stopwords import *
-  rmsw(要過濾的string)
+
+  # default
+  rmsw(input string, flag=False)
+
+  # return segmentation with part of speech.
+  rmsw(input string, flag=True)
   ```
-3. 只留特定詞性
-```
-rmsw(要過濾的string, 詞性(optional n, v, a ...etc), 只限中文（optional True/False）)
-```
 
 ## 所有語料大小：
 

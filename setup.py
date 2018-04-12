@@ -5,7 +5,7 @@ setup(
     packages=['udicOpenData'],
     package_dir={'udicOpenData':'udicOpenData'},
     package_data={'udicOpenData':['dictionary/*', 'stopwords/*']},
-    version = '0.8',
+    version = '0.9',
     description = 'udic dictionary, stopwords module',
     author = ['davidtnfsh'],
     author_email = 'davidtnfsh@gmail.com',
