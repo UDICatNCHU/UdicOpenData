@@ -22,6 +22,12 @@ p.s. rm stop words時就會跟著載入`1.`實驗室字典了
   rmsw(input string, flag=True)
   ```
 
+## For elasticsearch
+
+1. `cd scripts`
+2. `python3 dump2es.py`
+3. you'll see a bunch of dictionarys and stopword files in this dir, just move it into `elasticsearch-analysis-jieba` dir and that's it.
+
 ## 所有語料大小：
 
 * 正面情緒：約有309163筆，44M
