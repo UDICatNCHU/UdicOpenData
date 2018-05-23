@@ -1,4 +1,6 @@
 venv
+*.dict
+stopword.txt
 *.json
 ghostdriver.log
 phantomjs
