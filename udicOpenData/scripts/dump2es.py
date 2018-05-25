@@ -7,6 +7,6 @@ for dictfile in os.listdir('../dictionary'):
 			for keyword in new_dictionary:
 				f.write(keyword)
 
-with open('stopword.txt', 'w') as f:
+with open('stopwords.txt', 'w') as f:
 	for i in ' \n'.join(json.load(open('../stopwords/stopwords.json'))):
 		f.write(i)
