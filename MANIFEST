@@ -9,8 +9,11 @@ udicOpenData/text2json_nospark.py
 udicOpenData/dictionary/__init__.py
 udicOpenData/dictionary/attractions.dict.txt
 udicOpenData/dictionary/dict.txt.big.txt
+udicOpenData/dictionary/ptt.txt
+udicOpenData/dictionary/sougou.txt
+udicOpenData/dictionary/sougou.txt.cn
 udicOpenData/dictionary/wiki.dict.txt
-udicOpenData/dictionary/鄉民擴充辭典.txt
+udicOpenData/scripts/dump2es.py
 udicOpenData/stopwords/__init__.py
 udicOpenData/stopwords/stopwords.json
 udicOpenData/stopwords/政治類stopwords.root.json

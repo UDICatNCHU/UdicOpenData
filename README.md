@@ -24,9 +24,67 @@ p.s. rm stop words時就會跟著載入`1.`實驗室字典了
 
 ## For elasticsearch
 
-1. `cd scripts`
-2. `python3 dump2es.py`
-3. you'll see a bunch of dictionarys and stopword files in this dir, just move it into `elasticsearch-analysis-jieba` dir and that's it.
+`dump2es.py` this command will generate two file with different filename extension
+
+please move these two files into elasticsearch plugin folder
+
+1. ik:`dump2es.py ik`
+    * stopword:`ext_stopword.dic`
+    * dictionary:`mydict.dic`
+    ```json
+    巨蛋
+    遠雄
+    趙藤雄
+    蔡英文
+    陳水扁
+    立法院
+    蔡正元
+    頂新
+    食安
+    柯p
+    ...
+    ...
+    ...
+    ```
+2. jieba:`dump2es.py jieba`
+    * stopword:`ext_stopword.txt`
+    * dictionary:`mydict.dict`
+    ```json
+    巨蛋 99
+    遠雄 99
+    趙藤雄 99
+    蔡英文 99
+    陳水扁 99
+    立法院 99
+    蔡正元 99
+    頂新 99
+    食安 99
+    柯p 99
+    ...
+    ...
+    ...
+    ```
+
+stopword:
+```json
+上 
+上來 
+上去 
+將不 
+為
+www 
+http 
+https 
+.com 
+– 
+● 
+○ 
+～ 
+...
+...
+...
+```
+
 
 ## 所有語料大小：
 
