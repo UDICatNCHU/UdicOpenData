@@ -1,15 +1,15 @@
-from udicOpenData.dictionary import *
-import jieba.posseg as pseg
-import json, os, re
+import os, json
 DIR_NAME = os.path.dirname(os.path.abspath(__file__))
-
 STOPWORD_JSON = json.load(open(os.path.join(DIR_NAME, 'stopwords.json'), 'r', encoding='utf-8'))
+STOPWORD_JSON_en = json.load(open(os.path.join(DIR_NAME, 'stopwords-en.json'), 'r', encoding='utf-8'))
 
 def rmsw(doc, flag=False):
     '''
     parameter:
       flag: boolean, if true will return segment with pos.
     '''
+    import udicOpenData.dictionary
+    import jieba.posseg as pseg
     def is_chinese(keyword):
         for uchar in keyword:
             if '\u4e00' <= uchar<='\u9fff':
@@ -40,3 +40,22 @@ def rmsw(doc, flag=False):
             and i not in ['\xa0', '\xc2']
             and i.isdigit() == False 
         )
+
+# Yang, 2018/07/06
+def rmsw_en(doc, flag=False):
+    def hasNumbers(inputString):
+        return any(char.isdigit() for char in inputString)
+
+    import nltk, re
+    from nltk import ne_chunk, pos_tag, word_tokenize
+    nltk.download('punkt')
+    nltk.download('averaged_perceptron_tagger')
+    nltk.download('maxent_ne_chunker')
+    nltk.download('words')
+
+    chunks = ne_chunk(pos_tag(word_tokenize(doc)))
+    words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
+    for word in words:
+        word = re.sub(r'[^a-zA-Z0-9 -]', '', word)
+        if word and not hasNumbers(word) and word not in STOPWORD_JSON_en:
+            yield word

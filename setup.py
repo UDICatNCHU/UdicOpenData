@@ -15,7 +15,9 @@ setup(
     classifiers = [],
     license='GPL3.0',
     install_requires=[
-        'jieba'
+        'jieba',
+        'nltk',
+        'numpy'
     ],
     zip_safe=True,
     scripts=['udicOpenData/scripts/dump2es.py']

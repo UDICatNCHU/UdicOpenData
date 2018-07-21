@@ -21,6 +21,20 @@ p.s. rm stop words時就會跟著載入`1.`實驗室字典了
   # return segmentation with part of speech.
   rmsw(input string, flag=True)
   ```
+3. demo:
+  * zh:
+
+    ```
+    >>> doc = '首先，對區塊鏈需要的第一個理解是，它是一種「將資料寫錄的技術」。'
+    >>> list(rmsw(doc, flag=True))
+    [('區塊鏈', 'n'), ('需要', 'n'), ('第一個', 'm'), ('理解', 'n'), ('一種', 'm'), ('資料', 'n'), ('寫錄', 'v'), ('技術', 'n')]
+    ```
+
+  * en:
+
+    ```
+    wait for Yang
+    ```
 
 ## For elasticsearch
 
