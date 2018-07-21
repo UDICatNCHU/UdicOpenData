@@ -1,7 +1,11 @@
-import os, json
+import os, json, nltk
 DIR_NAME = os.path.dirname(os.path.abspath(__file__))
 STOPWORD_JSON = json.load(open(os.path.join(DIR_NAME, 'stopwords.json'), 'r', encoding='utf-8'))
 STOPWORD_JSON_en = json.load(open(os.path.join(DIR_NAME, 'stopwords-en.json'), 'r', encoding='utf-8'))
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
 
 def rmsw(doc, flag=False):
     '''
@@ -46,12 +50,8 @@ def rmsw_en(doc, flag=False):
     def hasNumbers(inputString):
         return any(char.isdigit() for char in inputString)
 
-    import nltk, re
+    import re
     from nltk import ne_chunk, pos_tag, word_tokenize
-    nltk.download('punkt')
-    nltk.download('averaged_perceptron_tagger')
-    nltk.download('maxent_ne_chunker')
-    nltk.download('words')
 
     chunks = ne_chunk(pos_tag(word_tokenize(doc)))
     words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
