@@ -33,7 +33,9 @@ p.s. rm stop words時就會跟著載入`1.`實驗室字典了
   * en:
 
     ```
-    wait for Yang
+    >>> doc = 'The City of New York, often called New York City (NYC) or simply New York, is the most populous city in the United States.'
+    >>> list(rmsw_en(doc))
+    ['The', 'City', 'New York', 'called', 'New York City', 'NYC', 'simply', 'New York', 'populous', 'city', 'United States']
     ```
 
 ## For elasticsearch
