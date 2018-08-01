@@ -1291,7 +1291,6 @@ Lover' 99 n
 船仔頭藝術村文教基金會Chau A Thau 99 n
 南方澳觀光漁市場 99 n
 猴洞坑瀑布 99 n
-Bey 99 n
 梨山文化陳列館 99 n
 桂花巷 99 n
 頭城城堡咖啡一館Mr. Brown Cafe - 1st Store 99 n
@@ -1886,7 +1885,6 @@ R9中央公園站 99 n
 台中酒廠 99 n
 田墩風獅爺 99 n
 翠華、紅香部落(力行線) 99 n
-Guand 99 n
 七美石獅風景區 99 n
 大坑2號步道 99 n
 炭窯 99 n
@@ -2039,7 +2037,6 @@ FE21'高雄大遠百FE21' 99 n
 冬山河自行車道 99 n
 茂林風景區 99 n
 鐵砧山風景區 99 n
-Guandu Nature Park 99 n
 全台開基永華宮Sheng Wang Gong 99 n
 紅樹林濕地生態公園 99 n
 揚英風美術館Yuyuyang Art Museum 99 n
@@ -2236,7 +2233,6 @@ Guandu Nature Park 99 n
 七堵火車站鐵道公園 99 n
 橋頭糖業文化園區 99 n
 橘二代 99 n
-Tain 99 n
 連星園驛站 99 n
 親不知子海上古道 99 n
 水寨一方農場 99 n
@@ -2429,7 +2425,6 @@ Tain 99 n
 願景館 99 n
 黃蝶翠谷 99 n
 金門八二三戰史館 99 n
-Gem Shop真金店 99 n
 鎮瀾文化大樓 99 n
 凱旋國際觀光夜市 99 n
 蕃薯厝順天宮 99 n
@@ -2461,7 +2456,6 @@ Gem Shop真金店 99 n
 尤瑪山莊 99 n
 九芎湖九福步道 99 n
 昇恆昌市區民權店Ever Rich Taipei Downtown Store, 99 n
-Tainan Municipal Library 99 n
 南屯老街 99 n
 稻米原鄉館Rice Village House 99 n
 新竹大遠百 99 n
@@ -2890,7 +2884,6 @@ FE21'高雄大遠百FE21' Dayuanbai 99 n
 牛港稜步道 99 n
 高雄市立美術館Kaohsiung Museum of Fine Arts 99 n
 野鴿谷 99 n
-Urban One 99 n
 國立中央大學 99 n
 法鼓山農禪寺Fagushan Nongchan Temple 99 n
 石藝大街 99 n
@@ -3702,7 +3695,6 @@ O2鹽埕埔站行人徒步區 99 n
 綠島鄉Green Island 99 n
 九斗有機農場 99 n
 明志書院 99 n
-La Yoo 99 n
 八卦山青山茶園 99 n
 台北四面佛 99 n
 高雄代天宮 99 n
@@ -3721,7 +3713,6 @@ La Yoo 99 n
 美濃黃蝶翠谷 99 n
 福隆海水浴場Fulung Beach 99 n
 青塘園 99 n
-IKEA 宜家家居 99 n
 獨立山步道 99 n
 雙連埤 99 n
 台南武德殿 99 n
@@ -4293,7 +4284,6 @@ iicake雲林蛋糕毛巾咖啡館 99 n
 媽靈宮 99 n
 李開和洋樓 99 n
 和平島觀光魚市大街 99 n
-Azone 花蓮文化創意產業園區  (文創發展司) 99 n
 金沙鎮后水頭風獅爺 99 n
 竹東河濱公園 99 n
 霄裡大池(霄裡池) 99 n
@@ -5091,7 +5081,6 @@ Lover's Valley 99 n
 桃園觀光夜市 99 n
 水里車站 99 n
 花蓮城隍廟 99 n
-Beyond Plaza 99 n
 獅山砲陣地 99 n
 劉銘傳隧道 99 n
 藝術村餐坊 99 n
@@ -5406,7 +5395,6 @@ Daliart藝術廣場 99 n
 鐵道文化園區 99 n
 杉林大愛商業中心 99 n
 林獻堂先生文物館 99 n
-Tai 玻璃工坊 99 n
 富貴角遊憩區 99 n
 冬山河森林公園Dongshan River Forest Park 99 n
 鹿港民俗文物館Lukang Folk Arts Museum 99 n
@@ -5904,7 +5892,6 @@ R22A橋頭糖廠站 99 n
 祭人頭場 99 n
 橋仔聚落 99 n
 天惠堂 99 n
-Urban O 99 n
 國立新竹生活美學館National Hsinchu Living Arts Center 99 n
 華泰名品城Gloria Outlets 99 n
 澎湖望安嶼 99 n
