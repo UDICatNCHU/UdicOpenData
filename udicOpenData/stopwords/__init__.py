@@ -7,9 +7,9 @@ from pathlib import Path, PurePath
 
 import nltk
 
-STOPWORD_PKL = pickle.load(open(PurePath(Path(__file__).resolve().parent, 'stopwords.pkl'), 'rb'))
-STOPWORD_EN_PKL = pickle.load(open(PurePath(Path(__file__).resolve().parent, \
-'stopwords-en.pkl'), 'rb'))
+STOPWORD_PKL = pickle.load(open(str(PurePath(Path(__file__).resolve().parent, 'stopwords.pkl')), 'rb'))
+STOPWORD_EN_PKL = pickle.load(open(str(PurePath(Path(__file__).resolve().parent, \
+'stopwords-en.pkl')), 'rb'))
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
