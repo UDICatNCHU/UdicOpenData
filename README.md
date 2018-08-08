@@ -35,9 +35,12 @@ p.s. rm stop words時就會跟著載入`1.`實驗室字典了
     ```
     >>> doc = 'The City of New York, often called New York City (NYC) or simply New York, is the most populous city in the United States.'
     >>> list(rmsw_en(doc))
-    ['The', 'City', 'New York', 'called', 'New York City', 'NYC', 'simply', 'New York', 'populous', 'city', 'United States']
+    ['City', 'New York', 'called', 'New York City', 'NYC', 'simply', 'New York', 'populous', 'city', 'United States']
+    
+    >>> list(rmsw_en(doc, flag=True))
+    >>> [('City', 'NNP'), ('New York', 'NNP/NNP'), ('called', 'VBN'), ('New York City', 'NNP/NNP/NNP'), ('NYC', 'NN'), ('simply', 'RB'), ('New York', 'NNP/NNP'), ('populous', 'JJ'), ('city', 'NN'), ('United States', 'NNP/NNS')]
     ```
-
+   
 ## For elasticsearch
 
 `dump2es.py` this command will generate two file with different filename extension
