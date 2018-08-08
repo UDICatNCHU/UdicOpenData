@@ -55,7 +55,7 @@ def rmsw(doc, flag=False):
                 and not i.isdigit()
                 )
 
-# Yang, 2018/07/06
+# Yang, 2018/08/08
 def rmsw_en(doc, flag=False):
     def has_numbers(input_string):
         return any(char.isdigit() for char in input_string)
@@ -63,9 +63,23 @@ def rmsw_en(doc, flag=False):
     import re
     from nltk import ne_chunk, pos_tag, word_tokenize
 
-    chunks = ne_chunk(pos_tag(word_tokenize(doc)))
-    words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
-    for word in words:
-        word = re.sub(r'[^a-zA-Z0-9 -]', '', word)
-        if word and not has_numbers(word) and word.lower() not in STOPWORD_EN_PKL:
-            yield word
+    doc = doc.strip()
+
+    if flag:
+        chunks = ne_chunk(pos_tag(word_tokenize(doc)))
+        words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
+        for word in words:
+            word = re.sub(r'[^a-zA-Z0-9 -]', '', word)
+            if word and not has_numbers(word) and word.lower() not in STOPWORD_EN_PKL:
+                if len(word.split()) > 1:
+                    pos = '/'.join([pos_tag(word_tokenize(i))[0][1] for i in word.split()])
+                else:
+                    pos = pos_tag(word_tokenize(word))[0][1]
+                yield word, pos
+    else:
+        chunks = ne_chunk(pos_tag(word_tokenize(doc)))
+        words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
+        for word in words:
+            word = re.sub(r'[^a-zA-Z0-9 -]', '', word)
+            if word and not has_numbers(word) and word.lower() not in STOPWORD_EN_PKL:
+                yield word
