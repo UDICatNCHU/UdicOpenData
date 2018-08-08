@@ -5,7 +5,7 @@ setup(
     packages=['udicOpenData'],
     package_dir={'udicOpenData':'udicOpenData'},
     package_data={'udicOpenData':['dictionary/*', 'stopwords/*', 'scripts/dump2es.py']},
-    version = '1.8',
+    version = '1.9',
     description = 'udic dictionary, stopwords module',
     author = ['davidtnfsh', 'CYJiang0718'],
     author_email = 'davidtnfsh@gmail.com',

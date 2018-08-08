@@ -15,5 +15,5 @@ udicOpenData/dictionary/sougou.txt.cn
 udicOpenData/dictionary/wiki.dict.txt
 udicOpenData/scripts/dump2es.py
 udicOpenData/stopwords/__init__.py
-udicOpenData/stopwords/stopwords-en.json
-udicOpenData/stopwords/stopwords.json
+udicOpenData/stopwords/stopwords-en.pkl
+udicOpenData/stopwords/stopwords.pkl

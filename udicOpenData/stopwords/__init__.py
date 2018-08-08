@@ -1,12 +1,16 @@
-import json
-import os
+'''
+this module supply some segmetation function for multiple language
+also remove stopwords as well.
+'''
+import pickle
+from pathlib import Path, PurePath
 
 import nltk
 
-DIR_NAME = os.path.dirname(os.path.abspath(__file__))
-STOPWORD_JSON = json.load(open(os.path.join(DIR_NAME, 'stopwords.json'), 'r', encoding='utf-8'))
-STOPWORD_JSON_EN = json.load(open(os.path.join(DIR_NAME, 'stopwords-en.json'), 'r',\
- encoding='utf-8'))
+STOPWORD_PKL = pickle.load(open(PurePath(Path(__file__).resolve().parent, 'stopwords.pkl'), 'rb'))
+STOPWORD_EN_PKL = pickle.load(open(PurePath(Path(__file__).resolve().parent, \
+'stopwords-en.pkl'), 'rb'))
+
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('maxent_ne_chunker')
@@ -38,14 +42,14 @@ def rmsw(doc, flag=False):
     # flag means showing part of speech
     if flag:
         return (tuple(i) for i in pseg.cut(doc)
-                if i.word not in STOPWORD_JSON
+                if i.word not in STOPWORD_PKL
                 and (is_chinese(i.word) or (is_english(i.word) and len(i.word) >= 2))
                 and i.word not in ['\xa0', '\xc2']
                 and not i.word.isdigit()
                 )
     else:
         return (i for i in jieba.cut(doc)
-                if i not in STOPWORD_JSON
+                if i not in STOPWORD_PKL
                 and (is_chinese(i) or (is_english(i) and len(i) >= 2))
                 and i not in ['\xa0', '\xc2']
                 and not i.isdigit()
@@ -63,5 +67,5 @@ def rmsw_en(doc, flag=False):
     words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
     for word in words:
         word = re.sub(r'[^a-zA-Z0-9 -]', '', word)
-        if word and not has_numbers(word) and word.lower() not in STOPWORD_JSON_EN:
+        if word and not has_numbers(word) and word.lower() not in STOPWORD_EN_PKL:
             yield word
