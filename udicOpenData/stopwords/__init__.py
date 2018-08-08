@@ -63,5 +63,5 @@ def rmsw_en(doc, flag=False):
     words = [w[0] if isinstance(w, tuple) else ' '.join(t[0] for t in w) for w in chunks]
     for word in words:
         word = re.sub(r'[^a-zA-Z0-9 -]', '', word)
-        if word and not has_numbers(word) and word not in STOPWORD_JSON_EN:
+        if word and not has_numbers(word) and word.lower() not in STOPWORD_JSON_EN:
             yield word
