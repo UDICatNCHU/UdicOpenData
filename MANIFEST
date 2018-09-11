@@ -8,6 +8,7 @@ udicOpenData/text2json.py
 udicOpenData/text2json_nospark.py
 udicOpenData/dictionary/__init__.py
 udicOpenData/dictionary/attractions.dict.txt
+udicOpenData/dictionary/dcard.dict.txt
 udicOpenData/dictionary/dict.txt.big.txt
 udicOpenData/dictionary/ptt.txt
 udicOpenData/dictionary/sougou.txt

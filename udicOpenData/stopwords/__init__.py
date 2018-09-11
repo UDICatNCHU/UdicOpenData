@@ -6,14 +6,17 @@ import pickle
 from pathlib import Path, PurePath
 
 import nltk
+from nltk.stem import WordNetLemmatizer
 
 STOPWORD_PKL = pickle.load(open(str(PurePath(Path(__file__).resolve().parent, 'stopwords.pkl')), 'rb'))
 STOPWORD_EN_PKL = pickle.load(open(str(PurePath(Path(__file__).resolve().parent, 'stopwords-en.pkl')), 'rb'))
+WORDNET_LEMMATIZER = WordNetLemmatizer()
 
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('maxent_ne_chunker')
 nltk.download('words')
+nltk.download('wordnet')
 
 def rmsw(doc, flag=False):
     '''
@@ -78,7 +81,10 @@ def rmsw_en(doc, flag=False):
                 if len(word.split()) > 1:
                     pos = '/'.join([pos_tag(word_tokenize(i))[0][1] for i in word.split()])
                 else:
-                    pos = pos_tag(word_tokenize(word))[0][1]
-                yield word, pos
+                    pos = pos_tag(word_tokenize(word))
+                    if not pos:
+                        continue
+                    pos = pos[0][1]
+                yield WORDNET_LEMMATIZER.lemmatize(word.lower()), pos
             else:
-                yield word
+                yield WORDNET_LEMMATIZER.lemmatize(word.lower())
