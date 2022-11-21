@@ -27,6 +27,7 @@ def rmsw(doc, flag=False):
     import udicOpenData.dictionary
     import jieba.posseg as pseg
     import jieba
+    from opencc import OpenCC
     def is_chinese(keyword):
         for uchar in keyword:
             if '\u4e00' <= uchar <= '\u9fff':
@@ -42,16 +43,19 @@ def rmsw(doc, flag=False):
 
     doc = doc.strip()
 
+    cc = OpenCC('tw2s')    # traditional chinese to simplified chinese
+    dd = OpenCC('s2tw')    # simplified chinese to traditional chinese  dan 2022/11/21
+
     # flag means showing part of speech
     if flag:
-        return (tuple(i) for i in pseg.cut(doc)
-                if i.word not in STOPWORD_PKL
-                and (is_chinese(i.word) or (is_english(i.word) and len(i.word) >= 2))
-                and i.word not in ['\xa0', '\xc2']
-                and not i.word.isdigit()
+        return ((dd.convert(i),j) for i,j in pseg.cut(cc.convert(doc))
+                if i not in STOPWORD_PKL
+                and (is_chinese(i) or (is_english(i) and len(i) >= 2))
+                and i not in ['\xa0', '\xc2']
+                and not i.isdigit()
                 )
     else:
-        return (i for i in jieba.cut(doc)
+        return (dd.convert(i) for i in jieba.cut(cc.convert(doc))
                 if i not in STOPWORD_PKL
                 and (is_chinese(i) or (is_english(i) and len(i) >= 2))
                 and i not in ['\xa0', '\xc2']
