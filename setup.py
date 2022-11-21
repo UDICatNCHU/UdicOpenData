@@ -5,7 +5,7 @@ setup(
     packages=['udicOpenData'],
     package_dir={'udicOpenData':'udicOpenData'},
     package_data={'udicOpenData':['dictionary/*', 'stopwords/*', 'scripts/dump2es.py']},
-    version = '2.4',
+    version = '2.4.1',
     description = 'udic dictionary, stopwords module',
     author = ['davidtnfsh', 'CYJiang0718'],
     author_email = 'davidtnfsh@gmail.com',
@@ -18,6 +18,7 @@ setup(
         'jieba',
         'nltk',
         'numpy'
+        'opencc-python-reimplemented'
     ],
     zip_safe=True,
     scripts=['udicOpenData/scripts/dump2es.py']
