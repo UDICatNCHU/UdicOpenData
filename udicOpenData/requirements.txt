@@ -6,3 +6,4 @@ selenium
 pyprind
 requests
 ngram
+opencc-python-reimplemented
