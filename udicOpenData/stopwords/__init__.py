@@ -17,6 +17,9 @@ nltk.download('averaged_perceptron_tagger')
 nltk.download('maxent_ne_chunker')
 nltk.download('words')
 nltk.download('wordnet')
+import udicOpenData.dictionary
+import jieba.posseg as pseg
+import jieba
 
 def rmsw(doc, flag=False):
     '''
@@ -24,9 +27,6 @@ def rmsw(doc, flag=False):
       doc: input string
       flag: boolean, if true will return segment with pos.
     '''
-    import udicOpenData.dictionary
-    import jieba.posseg as pseg
-    import jieba
     def is_chinese(keyword):
         for uchar in keyword:
             if '\u4e00' <= uchar <= '\u9fff':

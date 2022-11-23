@@ -21,6 +21,7 @@ jieba.load_userdict(os.path.join(DIR_NAME, 'wiki.dict.txt'))
 jieba.load_userdict(os.path.join(DIR_NAME, 'attractions.dict.txt'))
 jieba.load_userdict(os.path.join(DIR_NAME, 'dcard.dict.txt'))
 jieba.load_userdict(os.path.join(DIR_NAME, 'zh_translate_en.dict'))
+jieba.load_userdict(os.path.join(DIR_NAME, "2022_11_22_wiki_title_dict.txt"))
 
 # sougou.txt has a bad performance...
 # jieba.load_userdict(os.path.join(DIR_NAME, 'sougou.txt'))
